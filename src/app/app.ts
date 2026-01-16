@@ -6,8 +6,12 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTableModule } from '@angular/material/table';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
-import { PdfUploadService, PdfFile, ComparisonResult } from './services/pdf-upload.service';
+import { PdfUploadService, PdfFile, ComparisonResult, DuplicateEntry } from './services/pdf-upload.service';
+import { DuplicateDetailsDialog } from './duplicate-details-dialog';
 
 @Component({
   selector: 'app-root',
@@ -18,7 +22,10 @@ import { PdfUploadService, PdfFile, ComparisonResult } from './services/pdf-uplo
     MatProgressBarModule,
     MatListModule,
     MatIconModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatTableModule,
+    MatTabsModule,
+    MatDialogModule
   ],
   templateUrl: './app.html',
   styleUrl: './app.css'
@@ -28,6 +35,7 @@ export class App {
 
   private pdfUploadService = inject(PdfUploadService);
   private snackBar = inject(MatSnackBar);
+  private dialog = inject(MatDialog);
 
   protected pdfFiles = signal<PdfFile[]>([]);
   protected isUploading = signal(false);
@@ -172,5 +180,13 @@ export class App {
     this.pdfFiles.set([]);
     this.uploadProgress.set({ total: 0, completed: 0 });
     this.comparisonResult.set(null);
+  }
+
+  protected openDuplicateDetails(duplicate: DuplicateEntry): void {
+    this.dialog.open(DuplicateDetailsDialog, {
+      width: '800px',
+      maxHeight: '80vh',
+      data: duplicate
+    });
   }
 }

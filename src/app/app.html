@@ -19,7 +19,7 @@
 
       <!-- Action buttons -->
       <div class="actions">
-        <button mat-raised-button color="primary" (click)="selectFolder()" [disabled]="isUploading() || isScanning()">
+        <button mat-raised-button color="primary" (click)="selectFolder()" [disabled]="isUploading() || isScanning() || isFinalizing()">
           <mat-icon>folder_open</mat-icon>
           @if (isScanning()) {
             Scanning...
@@ -29,12 +29,12 @@
         </button>
 
         @if (hasFiles()) {
-          <button mat-raised-button color="accent" (click)="uploadAll()" [disabled]="isUploading()">
+          <button mat-raised-button color="accent" (click)="uploadAll()" [disabled]="isUploading() || isFinalizing()">
             <mat-icon>cloud_upload</mat-icon>
             Upload All ({{ pdfFiles().length }} files)
           </button>
 
-          <button mat-button color="warn" (click)="clearFiles()" [disabled]="isUploading()">
+          <button mat-button color="warn" (click)="clearFiles()" [disabled]="isUploading() || isFinalizing()">
             <mat-icon>clear</mat-icon>
             Clear
           </button>
@@ -48,6 +48,13 @@
           <p class="progress-text">
             Uploading: {{ uploadProgress().completed }} / {{ uploadProgress().total }} ({{ progressPercent() }}%)
           </p>
+        </div>
+      }
+
+      @if (isFinalizing()) {
+        <div class="progress-section">
+          <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          <p class="progress-text">Analyzing PDFs...</p>
         </div>
       }
 
@@ -77,4 +84,85 @@
       }
     </mat-card-content>
   </mat-card>
+
+  <!-- Results Card -->
+  @if (comparisonResult()) {
+    <mat-card class="results-card">
+      <mat-card-header>
+        <mat-card-title>Analysis Results</mat-card-title>
+        <mat-card-subtitle>
+          {{ comparisonResult()!.total_files }} files processed, {{ comparisonResult()!.duplicates_found }} duplicates found
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <mat-tab-group>
+          <!-- Parsed Results Tab -->
+          <mat-tab label="Parsed Data ({{ comparisonResult()!.parsed_results.length }})">
+            <div class="table-container">
+              <table mat-table [dataSource]="comparisonResult()!.parsed_results" class="results-table">
+                <ng-container matColumnDef="filename">
+                  <th mat-header-cell *matHeaderCellDef>Filename</th>
+                  <td mat-cell *matCellDef="let row">{{ row.filename }}</td>
+                </ng-container>
+
+                <ng-container matColumnDef="data">
+                  <th mat-header-cell *matHeaderCellDef>Extracted Data</th>
+                  <td mat-cell *matCellDef="let row">
+                    <pre class="data-preview">{{ row.data | json }}</pre>
+                  </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="['filename', 'data']"></tr>
+                <tr mat-row *matRowDef="let row; columns: ['filename', 'data'];"></tr>
+              </table>
+            </div>
+          </mat-tab>
+
+          <!-- Duplicates Tab -->
+          <mat-tab label="Duplicates ({{ comparisonResult()!.duplicates_found }})">
+            @if (comparisonResult()!.duplicates.length > 0) {
+              <div class="table-container">
+                <table mat-table [dataSource]="comparisonResult()!.duplicates" class="results-table duplicates-table">
+                  <ng-container matColumnDef="file1">
+                    <th mat-header-cell *matHeaderCellDef>File 1</th>
+                    <td mat-cell *matCellDef="let row">{{ row.file1 }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="file2">
+                    <th mat-header-cell *matHeaderCellDef>File 2</th>
+                    <td mat-cell *matCellDef="let row">{{ row.file2 }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="percentage">
+                    <th mat-header-cell *matHeaderCellDef>Match %</th>
+                    <td mat-cell *matCellDef="let row">
+                      <span class="match-badge">{{ row.comparison.duplicate_percentage | number:'1.0-1' }}%</span>
+                    </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="details">
+                    <th mat-header-cell *matHeaderCellDef></th>
+                    <td mat-cell *matCellDef="let row">
+                      <mat-icon class="details-icon">visibility</mat-icon>
+                    </td>
+                  </ng-container>
+
+                  <tr mat-header-row *matHeaderRowDef="['file1', 'file2', 'percentage', 'details']"></tr>
+                  <tr mat-row *matRowDef="let row; columns: ['file1', 'file2', 'percentage', 'details'];"
+                      class="clickable-row"
+                      (click)="openDuplicateDetails(row)"></tr>
+                </table>
+              </div>
+            } @else {
+              <div class="no-duplicates">
+                <mat-icon>check_circle</mat-icon>
+                <p>No duplicates found</p>
+              </div>
+            }
+          </mat-tab>
+        </mat-tab-group>
+      </mat-card-content>
+    </mat-card>
+  }
 </main>

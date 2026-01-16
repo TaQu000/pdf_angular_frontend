@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, Subject, from, mergeMap, map, catchError, of } from 'rxjs';
+import { Observable, Subject, from, mergeMap, map, catchError, of, throwError } from 'rxjs';
 
 export interface PdfFile {
   file: File;
@@ -23,10 +23,36 @@ export interface UploadProgress {
   current?: string;
 }
 
+export interface MatchingValue {
+  field: string;
+  value: any;
+}
+
+export interface DifferingValue {
+  field: string;
+  value1: any;
+  value2: any;
+}
+
+export interface DuplicateComparison {
+  is_duplicate: boolean;
+  duplicate_percentage: number;
+  total_fields_compared: number;
+  matching_fields: number;
+  matching_values: MatchingValue[];
+  differing_values: DifferingValue[];
+}
+
+export interface DuplicateEntry {
+  file1: string;
+  file2: string;
+  comparison: DuplicateComparison;
+}
+
 export interface ComparisonResult {
   total_files: number;
   duplicates_found: number;
-  duplicates: Array<{ file1: string; file2: string }>;
+  duplicates: DuplicateEntry[];
   parsed_results: Array<{ filename: string; data: any }>;
 }
 
@@ -162,7 +188,7 @@ export class PdfUploadService {
    */
   finalizeSession(): Observable<ComparisonResult> {
     if (!this.sessionId) {
-      throw new Error('No active session');
+      return throwError(() => new Error('No active session'));
     }
 
     const sessionId = this.sessionId;
