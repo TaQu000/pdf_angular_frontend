@@ -9,9 +9,11 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatChipsModule } from '@angular/material/chips';
 
-import { PdfUploadService, PdfFile, ComparisonResult, DuplicateEntry } from './services/pdf-upload.service';
+import { PdfUploadService, PdfFile, ComparisonResult, DuplicateEntry, ParsedResult } from './services/pdf-upload.service';
 import { DuplicateDetailsDialog } from './duplicate-details-dialog';
+import { ParsedDataDialog } from './parsed-data-dialog';
 
 @Component({
   selector: 'app-root',
@@ -25,7 +27,8 @@ import { DuplicateDetailsDialog } from './duplicate-details-dialog';
     MatSnackBarModule,
     MatTableModule,
     MatTabsModule,
-    MatDialogModule
+    MatDialogModule,
+    MatChipsModule
   ],
   templateUrl: './app.html',
   styleUrl: './app.css'
@@ -187,6 +190,14 @@ export class App {
       width: '800px',
       maxHeight: '80vh',
       data: duplicate
+    });
+  }
+
+  protected openParsedDataDialog(parsedResult: ParsedResult): void {
+    this.dialog.open(ParsedDataDialog, {
+      width: '800px',
+      maxHeight: '80vh',
+      data: parsedResult
     });
   }
 }

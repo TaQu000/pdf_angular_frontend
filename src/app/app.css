@@ -97,6 +97,40 @@
   border-radius: 4px;
 }
 
+/* Parsed results chips */
+.parsed-results-chips {
+  padding: 24px 16px;
+}
+
+.chips-label {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.parsed-results-chips mat-chip-set {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.parsed-data-chip {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.parsed-data-chip:hover {
+  background-color: #e8eaf6 !important;
+}
+
+.chips-hint {
+  margin-top: 16px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.54);
+  font-style: italic;
+}
+
 .no-duplicates {
   display: flex;
   flex-direction: column;

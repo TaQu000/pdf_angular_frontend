@@ -49,11 +49,16 @@ export interface DuplicateEntry {
   comparison: DuplicateComparison;
 }
 
+export interface ParsedResult {
+  filename: string;
+  data: any;
+}
+
 export interface ComparisonResult {
   total_files: number;
   duplicates_found: number;
   duplicates: DuplicateEntry[];
-  parsed_results: Array<{ filename: string; data: any }>;
+  parsed_results: ParsedResult[];
 }
 
 @Injectable({
