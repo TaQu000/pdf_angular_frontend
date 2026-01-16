@@ -23,6 +23,13 @@ export interface UploadProgress {
   current?: string;
 }
 
+export interface ComparisonResult {
+  total_files: number;
+  duplicates_found: number;
+  duplicates: Array<{ file1: string; file2: string }>;
+  parsed_results: Array<{ filename: string; data: any }>;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -30,26 +37,13 @@ export class PdfUploadService {
   private http = inject(HttpClient);
 
   // Configure your backend URL here
-  private readonly apiUrl = 'http://localhost:8000/upload';
+  private readonly apiUrl = 'http://localhost:5000';
 
   // Number of concurrent uploads
-  private readonly concurrency = 3;
+  private readonly concurrency = 5;
 
-  /**
-   * Convert a File to base64 string
-   */
-  private fileToBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        // Remove the data URL prefix (e.g., "data:application/pdf;base64,")
-        const base64 = (reader.result as string).split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = (error) => reject(error);
-    });
-  }
+  // Current session ID
+  private sessionId: string | null = null;
 
   /**
    * Check if File System Access API is supported
@@ -121,34 +115,62 @@ export class PdfUploadService {
   }
 
   /**
-   * Upload a single PDF file
+   * Start a new comparison session
+   */
+  private startSession(): Observable<string> {
+    return this.http.post<{ session_id: string }>(`${this.apiUrl}/session/start`, {}).pipe(
+      map((response) => {
+        this.sessionId = response.session_id;
+        return response.session_id;
+      })
+    );
+  }
+
+  /**
+   * Upload a single PDF file to the current session
    */
   private uploadSinglePdf(pdfFile: PdfFile): Observable<UploadResult> {
-    return from(this.fileToBase64(pdfFile.file)).pipe(
-      mergeMap((base64Content) => {
-        const payload = {
-          fileName: pdfFile.name,
-          fileSize: pdfFile.size,
-          content: base64Content
-        };
+    if (!this.sessionId) {
+      return of({
+        fileName: pdfFile.name,
+        success: false,
+        error: 'No active session'
+      });
+    }
 
-        return this.http.post<{ success: boolean; message?: string }>(this.apiUrl, payload).pipe(
-          map(() => ({
-            fileName: pdfFile.name,
-            success: true
-          })),
-          catchError((error) => of({
-            fileName: pdfFile.name,
-            success: false,
-            error: error.message || 'Upload failed'
-          }))
-        );
-      }),
+    const formData = new FormData();
+    formData.append('file', pdfFile.file);
+
+    return this.http.post<{ uploaded: boolean; filename: string; total_in_session: number }>(
+      `${this.apiUrl}/session/${this.sessionId}/upload`,
+      formData
+    ).pipe(
+      map(() => ({
+        fileName: pdfFile.name,
+        success: true
+      })),
       catchError((error) => of({
         fileName: pdfFile.name,
         success: false,
-        error: error.message || 'Failed to read file'
+        error: error.error?.error || error.message || 'Upload failed'
       }))
+    );
+  }
+
+  /**
+   * Finalize the session and get comparison results
+   */
+  finalizeSession(): Observable<ComparisonResult> {
+    if (!this.sessionId) {
+      throw new Error('No active session');
+    }
+
+    const sessionId = this.sessionId;
+    this.sessionId = null; // Clear session after finalize
+
+    return this.http.post<ComparisonResult>(
+      `${this.apiUrl}/session/${sessionId}/finalize`,
+      {}
     );
   }
 
@@ -161,7 +183,9 @@ export class PdfUploadService {
     let completed = 0;
     const total = pdfFiles.length;
 
-    from(pdfFiles).pipe(
+    // Start session first, then upload all files
+    this.startSession().pipe(
+      mergeMap(() => from(pdfFiles)),
       mergeMap((pdfFile) => {
         pdfFile.status = 'uploading';
         return this.uploadSinglePdf(pdfFile).pipe(

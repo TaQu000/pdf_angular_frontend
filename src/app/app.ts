@@ -7,7 +7,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
-import { PdfUploadService, PdfFile } from './services/pdf-upload.service';
+import { PdfUploadService, PdfFile, ComparisonResult } from './services/pdf-upload.service';
 
 @Component({
   selector: 'app-root',
@@ -32,7 +32,9 @@ export class App {
   protected pdfFiles = signal<PdfFile[]>([]);
   protected isUploading = signal(false);
   protected isScanning = signal(false);
+  protected isFinalizing = signal(false);
   protected uploadProgress = signal({ total: 0, completed: 0 });
+  protected comparisonResult = signal<ComparisonResult | null>(null);
 
   // Check if native directory picker is supported (Chrome/Edge)
   protected supportsDirectoryPicker = this.pdfUploadService.isDirectoryPickerSupported();
@@ -116,6 +118,7 @@ export class App {
     if (files.length === 0) return;
 
     this.isUploading.set(true);
+    this.comparisonResult.set(null);
 
     this.pdfUploadService.uploadPdfs(files).subscribe({
       next: ({ progress }) => {
@@ -132,7 +135,12 @@ export class App {
         if (errorCount > 0) {
           message += `, ${errorCount} failed`;
         }
-        this.snackBar.open(message, 'Dismiss', { duration: 5000 });
+        this.snackBar.open(message, 'Dismiss', { duration: 3000 });
+
+        // Finalize session to get comparison results
+        if (successCount > 0) {
+          this.finalizeSession();
+        }
       },
       error: (err) => {
         this.isUploading.set(false);
@@ -141,8 +149,28 @@ export class App {
     });
   }
 
+  private finalizeSession(): void {
+    this.isFinalizing.set(true);
+    this.pdfUploadService.finalizeSession().subscribe({
+      next: (result) => {
+        this.comparisonResult.set(result);
+        this.isFinalizing.set(false);
+        this.snackBar.open(
+          `Analysis complete: ${result.total_files} files, ${result.duplicates_found} duplicates found`,
+          'Dismiss',
+          { duration: 5000 }
+        );
+      },
+      error: (err) => {
+        this.isFinalizing.set(false);
+        this.snackBar.open('Finalize failed: ' + (err.error?.error || err.message), 'Dismiss', { duration: 5000 });
+      }
+    });
+  }
+
   clearFiles(): void {
     this.pdfFiles.set([]);
     this.uploadProgress.set({ total: 0, completed: 0 });
+    this.comparisonResult.set(null);
   }
 }
